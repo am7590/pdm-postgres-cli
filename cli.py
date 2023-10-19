@@ -68,6 +68,7 @@ follow_user_parser = subparsers.add_parser("follow_user", help="Follow a user")
 # unfollow_user
 unfollow_user_parser = subparsers.add_parser("unfollow_user", help="Unfollow a user")
 
+# TODO: Fetch all collections
 def list_collections(args, cursor):
     try:
         cursor.execute("SELECT * FROM Genre")
@@ -75,11 +76,9 @@ def list_collections(args, cursor):
         collections = cursor.fetchall()
 
         if collections:
-            print("Movie Collections:")
+            print("Genra Collection:")
             for collection in collections:
-                print(f"Genre: {collection[0]}")
-                # print(f"Number of Movies: {collection[1]}")
-                # print(f"Total Length of Movies: {collection[2]}\n")
+                print(f"{collection}")
         else:
             print("No movie collections found.")
 
@@ -88,10 +87,22 @@ def list_collections(args, cursor):
         print(f"Error listing collections: {e}")
         
 
-def search_movies(args):
-    print("searching movies")
-    # TODO
-    pass
+def search_movies(args, cursor):
+    try:
+        cursor.execute("SELECT * FROM Movie")
+
+        collections = cursor.fetchall()
+
+        if collections:
+            print("Movie Collection:")
+            for collection in collections:
+                print(f"{collection}")
+        else:
+            print("No movie collections found.")
+
+        cursor.close()
+    except psycopg2.Error as e:
+        print(f"Error listing collections: {e}")
 
 def add_movie(args):
     print("adding movie")
