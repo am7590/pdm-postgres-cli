@@ -44,10 +44,31 @@ def connect_to_database():
 parser = argparse.ArgumentParser(description="Movie Collection CLI")
 subparsers = parser.add_subparsers(title="Subcommands", dest="subcommand")
 
-# list_collections
+''' 
+Users will be able to create new accounts and access via login. The system must record
+the date and time an account is created. It must also store the dates and times users
+access the application
+'''
+create_user_parser = subparsers.add_parser("create_user", help="Create a new user")
+
+'''
+Users will be able to create collections of movies.
+'''
+
+'''
+Users will be to see the list of all their collections by name in ascending order. The list
+must show the collection name, number of movies in the collection, and total length of the 
+movies (in hours:minutes) of movies in the collection
+'''
 list_collections_parser = subparsers.add_parser("list_collections", help="List all movie collections")
 
-# search_movies
+'''
+Users will be able to search for movies by name, release date, cast members, studio, or
+genre. The resulting list of movies must show the movie’s name, the cast members, the
+director, the length and the ratings (MPAA and user). The list must be sorted alpha-
+betically (ascending) by movie’s name and release date. Users can sort the resulting
+list by: movie name, studio, genre, and released year (ascending and descending).
+'''
 search_movies_parser = subparsers.add_parser("search_movies", help="Search for movies")
 
 # add_movie
@@ -56,27 +77,50 @@ add_movie_parser = subparsers.add_parser("add_movie", help="Add a movie to a col
 # delete_movie
 delete_movie_parser = subparsers.add_parser("delete_movie", help="Delete a movie from a collection")
 
+# Modify the name of a collection, delete an entire collection
+
 # rate_movie
 rate_movie_parser = subparsers.add_parser("rate_movie", help="Rate a movie")
 
-# watch_movie
+# watch_movie (individual or entire collection)
 watch_movie_parser = subparsers.add_parser("watch_movie", help="Watch a movie")
 
-# follow_user
+# follow_user (by email)
 follow_user_parser = subparsers.add_parser("follow_user", help="Follow a user")
 
 # unfollow_user
 unfollow_user_parser = subparsers.add_parser("unfollow_user", help="Unfollow a user")
 
-# TODO: Fetch all collections
-def list_collections(args, cursor):
+# TODO: 'User' is not valid 
+def create_user(args, cursor):
     try:
-        cursor.execute("SELECT * FROM Genre")
+        cursor.execute('''Insert into p320_12.Users(user_id, last_access_date, creation_date, 
+            username, passwordhash, email, first_name, lastname)
+        Values(2, '2015-10-19 16:30:30', '2014-11-19 17:25:30', 'am7590', 'am7590', 
+            'rsr1998@gmail.com', 'Alek', 'Michelson')''')
 
         collections = cursor.fetchall()
 
         if collections:
             print("Genra Collection:")
+            for collection in collections:
+                print(f"{collection}")
+        else:
+            print("No movie collections found.")
+
+        cursor.close()
+    except psycopg2.Error as e:
+        print(f"{cursor.statusmessage}")
+
+# TODO: Fetch all collections
+def list_collections(args, cursor):
+    try:
+        cursor.execute("SELECT * FROM p320_12.User")
+
+        collections = cursor.fetchall()
+
+        if collections:
+            print("User Collection:")
             for collection in collections:
                 print(f"{collection}")
         else:
@@ -104,36 +148,50 @@ def search_movies(args, cursor):
     except psycopg2.Error as e:
         print(f"Error listing collections: {e}")
 
-def add_movie(args):
-    print("adding movie")
-    # TODO
-    pass
 
-def delete_movie(args):
-    print("deleting movie")
-    # TODO
-    pass
+def add_movie(args, cursor):
+    try:
+        cursor.execute('''INSERT INTO movie(movie_id, length, title, mpa_rating)
+            VALUES(0, 'P0000-00-00T02:04:00', 'Sausage Party', 'R')''')
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
 
-def rate_movie(args):
-    print("rating movie")
-    # TODO
-    pass
+# TODO: Make sure movie ID is not referenced on 'available_on' table
+def delete_movie(args, cursor):
+    try:
+        cursor.execute('''DELETE FROM p320_12.p320_12.movie WHERE movie_id=9''')
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
 
-def watch_movie(args):
-    print("watching movie")
-    # TODO
-    pass
+def rate_movie(args, cursor):
+    try:
+        cursor.execute('''Insert into Rate(user_id, movie_id, star_rating)
+            Values(1, 2, 4.8)''')
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
 
-def follow_user(args):
-    print("following user")
-    # TODO
-    pass
+def watch_movie(args, cursor):
+    try:
+        cursor.execute('''Insert into watch_movie(user_id, movie_id, date_time)
+            Values(1, 4, '2019-06-20 6:45:00')''')
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
 
-def unfollow_user(args):
-    print("unfollowing user")
-    # TODO
-    pass
+def follow_user(args, cursor):
+    try:
+        cursor.execute('''Insert into following(follower_id, followee_id)
+            Values(1, 1)''')
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
 
+
+def unfollow_user(args, cursor):
+    try:
+        cursor.execute('''DELETE FROM following WHERE follower_id=1''')
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
+
+create_user_parser.set_defaults(func=create_user)
 list_collections_parser.set_defaults(func=list_collections)
 search_movies_parser.set_defaults(func=search_movies)
 add_movie_parser.set_defaults(func=add_movie)
