@@ -34,6 +34,7 @@ def connect_to_database():
         if hasattr(args, "func"):
             if conn is not None:
                 args.func(args, cursor)
+                conn.commit()
                 conn.close()
             else:
                 print("Unable to connect to the database via SSH tunnel. Please check your SSH and database credentials.")
@@ -91,10 +92,9 @@ follow_user_parser = subparsers.add_parser("follow_user", help="Follow a user")
 # unfollow_user
 unfollow_user_parser = subparsers.add_parser("unfollow_user", help="Unfollow a user")
 
-# TODO: 'User' is not valid 
 def create_user(args, cursor):
     try:
-        cursor.execute('''Insert into p320_12.Users(user_id, last_access_date, creation_date, 
+        cursor.execute('''Insert into Users(user_id, last_access_date, creation_date, 
             username, passwordhash, email, first_name, lastname)
         Values(2, '2015-10-19 16:30:30', '2014-11-19 17:25:30', 'am7590', 'am7590', 
             'rsr1998@gmail.com', 'Alek', 'Michelson')''')
@@ -115,7 +115,7 @@ def create_user(args, cursor):
 # TODO: Fetch all collections
 def list_collections(args, cursor):
     try:
-        cursor.execute("SELECT * FROM p320_12.User")
+        cursor.execute("SELECT * FROM Users")
 
         collections = cursor.fetchall()
 
@@ -159,7 +159,7 @@ def add_movie(args, cursor):
 # TODO: Make sure movie ID is not referenced on 'available_on' table
 def delete_movie(args, cursor):
     try:
-        cursor.execute('''DELETE FROM p320_12.p320_12.movie WHERE movie_id=9''')
+        cursor.execute('''DELETE FROM p320_12.p320_12.movie WHERE movie_id=0''')
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
