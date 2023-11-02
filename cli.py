@@ -158,48 +158,67 @@ def delete_collection(conn, collection_id):
         print(f"An error occurred: {e}")
         conn.rollback()
 
-
-
-
-
-
-
 # TODO: Make sure movie ID is not referenced on 'available_on' table
-def delete_movie(args, cursor):
+def delete_movie(conn, movie_id):
+    cursor = conn.cursor()
     try:
-        cursor.execute('''DELETE FROM movie WHERE movie_id=0''')
+        cursor.execute('''DELETE FROM movie WHERE movie_id=%s''', (movie_id))
+        conn.commit()
+        print(f"Deleted movie.")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
-def rate_movie(args, cursor):
+def rate_movie(conn, user_id, movie_id, star_rating):
+    cursor = conn.cursor()
     try:
         cursor.execute('''Insert into Rate(user_id, movie_id, star_rating)
-            Values(1, 2, 4.8)''')
+            Values(%s, %s, %s)''', (user_id, movie_id, star_rating)) 
+        conn.commit()
+        print(f"Rated movie.")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
-def watch_movie(args, cursor):
+def watch_movie(conn, user_id, movie_id):
+    cursor = conn.cursor()
+    date_time = datetime.now()
     try:
         cursor.execute('''Insert into watch_movie(user_id, movie_id, date_time)
-            Values(1, 4, '2019-06-20 6:45:00')''')
+            Values(%s, %s, %s)''', (user_id, movie_id, date_time))
+        conn.commit()
+        print(f"Watched movie.")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
-def follow_user(args, cursor):
+def follow_user(conn, follower_id, followee_id):
+    cursor = conn.cursor()
     try:
         cursor.execute('''Insert into following(follower_id, followee_id)
-            Values(1, 1)''')
+            Values(%s, %s)''', (followee_id, followee_id))
+        conn.commit()
+        print(f"Followed user.")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
-
-def unfollow_user(args, cursor):
+def unfollow_user(conn, follower_id):
+    cursor = conn.cursor()
     try:
-        cursor.execute('''DELETE FROM following WHERE follower_id=1''')
+        cursor.execute('''DELETE FROM following WHERE follower_id=%s''', (follower_id,))
+        conn.commit()
+        print(f"Unfollowed user.")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
-
+def search_users(conn, email):
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''SELECT * FROM Users WHERE email=%s''', (email,))
+        conn.commit()
+        users = cursor.fetchall()
+        for user in users:
+            print(f"{user}")
+        print(f"Searched users")
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
 
 def run_cli():
     with SSHTunnelForwarder(
@@ -277,6 +296,8 @@ def run_cli():
         # unfollow_user
         unfollow_user_parser = subparsers.add_parser("unfollow_user", help="Unfollow a user")
 
+        search_users_parser = subparsers.add_parser("search_users", help="Search a user via email")
+
         # Subparser for creating a user
         create_user_parser.add_argument('username', type=str, help='Enter your username')
         create_user_parser.add_argument('password', type=str, help='Enter your password')
@@ -327,6 +348,8 @@ def run_cli():
 
         delete_collection_parser.add_argument('collection_id', type=int, help="The collection's ID")
 
+        search_users_parser.add_argument('email', type=str, help="The user's email to search")
+
         # create_user_parser.set_defaults(dest=create_user)
         create_collections_parser.set_defaults(dest=create_collection)
         list_collections_parser.set_defaults(dest=list_collections)
@@ -341,6 +364,7 @@ def run_cli():
         watch_movie_parser.set_defaults(dest=watch_movie)
         follow_user_parser.set_defaults(dest=follow_user)
         unfollow_user_parser.set_defaults(dest=unfollow_user)
+        search_users_parser.set_defaults(dest=search_users)
 
         args = parser.parse_args()
 
@@ -375,6 +399,8 @@ def run_cli():
             follow_user(connection, args.follower_id, args.followee_id)
         elif args.action == 'unfollow_user':
             unfollow_user(connection, args.follower_id)
+        elif args.action == 'search_users':
+            search_users(connection, args.email)
         else:
             parser.print_help()
             connection.close()
