@@ -106,12 +106,12 @@ def add_movie(args, cursor):
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
-def add_movie_to_collection(conn, collection_id, movie_id):
+def add_movie_to_collection(conn, collection_id, name):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "INSERT INTO collection_movies (collection_id, movie_id) VALUES (%s, %s)",
-            (collection_id, movie_id)
+            "Insert into collection(collection_id, name) VALUES (%s, %s)",
+            (collection_id, name)
         )
         conn.commit()
         print(f"Movie added to collection successfully.")
@@ -119,12 +119,12 @@ def add_movie_to_collection(conn, collection_id, movie_id):
         print(f"An error occurred: {e}")
         conn.rollback()
 
-def delete_movie_from_collection(conn, collection_id, movie_id):
+def delete_movie_from_collection(conn, collection_id, name):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "DELETE FROM collection_movies WHERE collection_id = %s AND movie_id = %s",
-            (collection_id, movie_id)
+            "DELETE FROM collection WHERE collection_id = %s AND name = %s",
+            (collection_id, name)
         )
         conn.commit()
         print(f"Movie removed from collection successfully.")
@@ -132,12 +132,12 @@ def delete_movie_from_collection(conn, collection_id, movie_id):
         print(f"An error occurred: {e}")
         conn.rollback()
 
-def modify_collection_name(conn, collection_id, new_name):
+def modify_collection_name(conn, collection_id, name):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "UPDATE collections SET collection_name = %s WHERE collection_id = %s",
-            (new_name, collection_id)
+            "UPDATE collection SET name = %s WHERE collection_id = %s",
+            (name, collection_id)
         )
         conn.commit()
         print(f"Collection name updated successfully.")
@@ -149,7 +149,7 @@ def delete_collection(conn, collection_id):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "DELETE FROM collections WHERE collection_id = %s",
+            "DELETE FROM collection WHERE collection_id = %s",
             (collection_id,)
         )
         conn.commit()
@@ -159,10 +159,15 @@ def delete_collection(conn, collection_id):
         conn.rollback()
 
 
+
+
+
+
+
 # TODO: Make sure movie ID is not referenced on 'available_on' table
 def delete_movie(args, cursor):
     try:
-        cursor.execute('''DELETE FROM p320_12.p320_12.movie WHERE movie_id=0''')
+        cursor.execute('''DELETE FROM movie WHERE movie_id=0''')
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
@@ -249,10 +254,16 @@ def run_cli():
         # add_movie
         add_movie_parser = subparsers.add_parser("add_movie", help="Add a movie to a collection")
 
+        # Add/delete from connection
+        add_movie_to_collection_parser = subparsers.add_parser("add_movie_to_collection", help="Add a movie to a user's collection")
+        delete_movie_from_collection_parser = subparsers.add_parser("delete_movie_from_collection", help="Delete a movie to a user's collection")
+
         # delete_movie
         delete_movie_parser = subparsers.add_parser("delete_movie", help="Delete a movie from a collection")
 
         # Modify the name of a collection, delete an entire collection
+        modify_collection_name_parser = subparsers.add_parser("modify_collection_name", help="Modify a collection")
+        delete_collection_parser = subparsers.add_parser("delete_collection", help="Delete a collection")
 
         # rate_movie
         rate_movie_parser = subparsers.add_parser("rate_movie", help="Rate a movie")
@@ -305,10 +316,24 @@ def run_cli():
         # Subparser for unfollowing a user
         unfollow_user_parser.add_argument('follower_id', type=int, help='Your user ID to unfollow someone')
 
+        add_movie_to_collection_parser.add_argument('collection_id', type=int, help="The collection's ID")
+        add_movie_to_collection_parser.add_argument('name', type=str, help="The collection's name")
+
+        delete_movie_from_collection_parser.add_argument('collection_id', type=int, help="The collection's ID")
+        delete_movie_from_collection_parser.add_argument('name', type=str, help="The collection's name")
+
+        modify_collection_name_parser.add_argument('collection_id', type=int, help="The collection's ID")
+        modify_collection_name_parser.add_argument('name', type=str, help="The collection's name")
+
+        delete_collection_parser.add_argument('collection_id', type=int, help="The collection's ID")
 
         # create_user_parser.set_defaults(dest=create_user)
         create_collections_parser.set_defaults(dest=create_collection)
         list_collections_parser.set_defaults(dest=list_collections)
+        add_movie_to_collection_parser.set_defaults(dest=add_movie_to_collection)
+        delete_movie_from_collection_parser.set_defaults(dest=delete_movie_from_collection)
+        modify_collection_name_parser.set_defaults(dest=modify_collection_name)
+        delete_collection_parser.set_defaults(dest=delete_collection)
         search_movies_parser.set_defaults(dest=search_movies)
         add_movie_parser.set_defaults(dest=add_movie)
         delete_movie_parser.set_defaults(dest=delete_movie)
@@ -328,6 +353,14 @@ def run_cli():
             create_collection(connection, args.user_id, args.collection_name)
         elif args.action == 'list_collections':
             list_collections(connection, args.user_id)
+        elif args.action == 'add_movie_to_collection':
+            add_movie_to_collection(connection, args.collection_id, args.name)
+        elif args.action == 'delete_movie_from_collection':
+            delete_movie_from_collection(connection, args.collection_id, args.name)
+        elif args.action == 'modify_collection_name':
+            modify_collection_name(connection, args.collection_id, args.name)
+        elif args.action == 'delete_collection':
+            delete_collection(connection, args.collection_id)
         elif args.action == 'search_movies':
             search_movies(connection, args.search_query)
         elif args.action == 'add_movie':
