@@ -28,16 +28,14 @@ def login_user(conn, username, password):
         print(f"An error occurred: {e}")
         conn.rollback()
     
-# Auto increment ID
+# TODO: Auto increment ID
 # create_user(connection, args.username, args.password, args.email, args.first_name, args.last_name)
 def create_user(conn, username, password, email, first_name, last_name):
     cursor = conn.cursor()
     try:
-        # We no longer need to manually set `user_id`, assuming it is auto-incremented by the database.
         last_access_date = datetime.now()
         creation_date = datetime.now()
         print("inserting")
-        # Use a parameterized query for safety and correctness.
         cursor.execute(
             "INSERT INTO Users (user_id, last_access_date, creation_date, username, passwordhash, email, first_name, lastname) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
             (100000, last_access_date, creation_date, username, password, email, first_name, last_name)
@@ -45,63 +43,61 @@ def create_user(conn, username, password, email, first_name, last_name):
         conn.commit()
         print(f"Successfully created user {username}")
     except psycopg2.Error as e:
-        # In case of an exception, print the error message from psycopg2
         print(f"An error occurred: {e}")
         conn.rollback()
-        # Function to create a new user
-# def create_user(conn, username, password, email, first_name, last_name):
-#     creation_date = datetime.now()
-#     cursor = conn.cursor()
-#     try:
-#         cursor.execute(
-#             "INSERT INTO users (username, password, email, first_name, last_name, creation_date, last_access_date) "
-#             "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-#             (username, password, email, first_name, last_name, creation_date, creation_date)
-#         )
-#         conn.commit()
-#         print(f"Account created for {username} on {creation_date}")
-#     except psycopg2.Error as e:
-#         print(f"An error occurred: {e}")
-#         conn.rollback()
-#     finally:
-#         cursor.close()
 
-# TODO: Fetch all collections
-def list_collections(args, cursor):
+def create_collection(conn, user_id, collection_name):
+    cursor = conn.cursor()
     try:
-        cursor.execute("SELECT * FROM Users")
-
-        collections = cursor.fetchall()
-
-        if collections:
-            print("User Collection:")
-            for collection in collections:
-                print(f"{collection}")
-        else:
-            print("No movie collections found.")
-
-        cursor.close()
+        cursor.execute(
+            "INSERT INTO Collection (Collection_ID, name) VALUES (%s, %s)",
+            (user_id, collection_name)
+        )
+        conn.commit()
+        print(f"Collection '{collection_name}' created successfully.")
     except psycopg2.Error as e:
-        print(f"Error listing collections: {e}")
-        
+        print(f"An error occurred: {e}")
+        conn.rollback()
 
-def search_movies(args, cursor):
+# TODO: finish this
+'''
+- [ ] Users will be to see the list of all their collections by name in ascending order. The list must show the following information per collection:
+    - [ ] Collection’s name
+    - [ ] # of movies in the collection
+    - [ ] Total length of movies (hours:minutes) in the collection
+'''
+def list_collections(conn, user_id):
+    cursor = conn.cursor()
     try:
-        cursor.execute("SELECT * FROM Movie")
-
+        cursor.execute("""
+            SELECT * FROM Collection
+            """)
         collections = cursor.fetchall()
-
-        if collections:
-            print("Movie Collection:")
-            for collection in collections:
-                print(f"{collection}")
-        else:
-            print("No movie collections found.")
-
-        cursor.close()
+        for collection_name, movie_count, total_length in collections:
+            print(f"Collection: {collection_name}, Movies: {movie_count}, Total Length: {str(total_length)}")
     except psycopg2.Error as e:
-        print(f"Error listing collections: {e}")
+        print(f"Error listing collections: {e}") 
 
+def search_movies(conn, search_query):
+    cursor = conn.cursor()
+    # Assuming there's a full-text search index or some logic to search based on the given query
+    try:
+        cursor.execute("""
+            SELECT m.title, array_agg(a.name), d.name, m.length, m.mpaa_rating, AVG(r.star_rating)
+            FROM movies m
+            JOIN cast_members cm ON m.movie_id = cm.movie_id
+            JOIN actors a ON cm.actor_id = a.actor_id
+            JOIN directors d ON m.director_id = d.director_id
+            LEFT JOIN ratings r ON m.movie_id = r.movie_id
+            WHERE m.title LIKE %s OR a.name LIKE %s OR d.name LIKE %s -- and so on for other fields
+            GROUP BY m.title, d.name, m.length, m.mpaa_rating
+            ORDER BY m.title ASC, m.release_date ASC
+            """, (f"%{search_query}%", f"%{search_query}%", f"%{search_query}%"))
+        movies = cursor.fetchall()
+        for movie in movies:
+            print(f"Movie: {movie}")
+    except psycopg2.Error as e:
+        print(f"Error searching movies: {e}")
 
 def add_movie(args, cursor):
     try:
@@ -109,6 +105,59 @@ def add_movie(args, cursor):
             VALUES(0, 'P0000-00-00T02:04:00', 'Sausage Party', 'R')''')
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
+
+def add_movie_to_collection(conn, collection_id, movie_id):
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO collection_movies (collection_id, movie_id) VALUES (%s, %s)",
+            (collection_id, movie_id)
+        )
+        conn.commit()
+        print(f"Movie added to collection successfully.")
+    except psycopg2.Error as e:
+        print(f"An error occurred: {e}")
+        conn.rollback()
+
+def delete_movie_from_collection(conn, collection_id, movie_id):
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "DELETE FROM collection_movies WHERE collection_id = %s AND movie_id = %s",
+            (collection_id, movie_id)
+        )
+        conn.commit()
+        print(f"Movie removed from collection successfully.")
+    except psycopg2.Error as e:
+        print(f"An error occurred: {e}")
+        conn.rollback()
+
+def modify_collection_name(conn, collection_id, new_name):
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE collections SET collection_name = %s WHERE collection_id = %s",
+            (new_name, collection_id)
+        )
+        conn.commit()
+        print(f"Collection name updated successfully.")
+    except psycopg2.Error as e:
+        print(f"An error occurred: {e}")
+        conn.rollback()
+
+def delete_collection(conn, collection_id):
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "DELETE FROM collections WHERE collection_id = %s",
+            (collection_id,)
+        )
+        conn.commit()
+        print(f"Collection deleted successfully.")
+    except psycopg2.Error as e:
+        print(f"An error occurred: {e}")
+        conn.rollback()
+
 
 # TODO: Make sure movie ID is not referenced on 'available_on' table
 def delete_movie(args, cursor):
@@ -168,19 +217,6 @@ def run_cli():
         parser = argparse.ArgumentParser(description="User Management System")
         subparsers = parser.add_subparsers(dest='action')
 
-        # Subparser for creating a user
-        parser_create = subparsers.add_parser('create', help='Create a new user account')
-        parser_create.add_argument('username', type=str, help='Username for the new account')
-        parser_create.add_argument('password', type=str, help='Password for the new account')
-        parser_create.add_argument('email', type=str, help='Email address for the new account')
-        parser_create.add_argument('first_name', type=str, help='First name of the user')
-        parser_create.add_argument('last_name', type=str, help='Last name of the user')
-
-        # Subparser for logging in
-        parser_login = subparsers.add_parser('login', help='Log into the system')
-        parser_login.add_argument('username', type=str, help='Your username')
-        parser_login.add_argument('password', type=str, help='Your password')
-
         # db_subparsers = parser.add_subparsers(÷dest='action')
         ''' 
         Users will be able to create new accounts and access via login. The system must record
@@ -192,6 +228,7 @@ def run_cli():
         '''
         Users will be able to create collections of movies.
         '''
+        create_collections_parser = subparsers.add_parser("create_collection", help="Create a new collection")
 
         '''
         Users will be to see the list of all their collections by name in ascending order. The list
@@ -229,7 +266,48 @@ def run_cli():
         # unfollow_user
         unfollow_user_parser = subparsers.add_parser("unfollow_user", help="Unfollow a user")
 
+        # Subparser for creating a user
+        create_user_parser.add_argument('username', type=str, help='Enter your username')
+        create_user_parser.add_argument('password', type=str, help='Enter your password')
+        create_user_parser.add_argument('email', type=str, help='Enter your email')
+        create_user_parser.add_argument('first_name', type=str, help='Enter your first name')
+        create_user_parser.add_argument('last_name', type=str, help='Enter your last name')
+
+        create_collections_parser.add_argument('user_id', type=int, help='Your user ID to create collections')
+        create_collections_parser.add_argument('collection_name', type=str, help='Your collection\'s name')
+
+        # Subparser for listing collections
+        list_collections_parser.add_argument('user_id', type=int, help='Your user ID to list collections')
+
+        # Subparser for searching movies
+        search_movies_parser.add_argument('search_query', type=str, help='Query to search for movies')
+
+        # Subparser for adding a movie
+        add_movie_parser.add_argument('collection_id', type=int, help='ID of the collection to add the movie to')
+        add_movie_parser.add_argument('movie_id', type=int, help='ID of the movie to add to the collection')
+
+        # Subparser for deleting a movie
+        delete_movie_parser.add_argument('movie_id', type=int, help='ID of the movie to delete')
+
+        # Subparser for rating a movie
+        rate_movie_parser.add_argument('user_id', type=int, help='Your user ID to rate a movie')
+        rate_movie_parser.add_argument('movie_id', type=int, help='ID of the movie to rate')
+        rate_movie_parser.add_argument('star_rating', type=float, help='Your rating for the movie')
+
+        # Subparser for watching a movie
+        watch_movie_parser.add_argument('user_id', type=int, help='Your user ID to register the movie as watched')
+        watch_movie_parser.add_argument('movie_id', type=int, help='ID of the movie you watched')
+
+        # Subparser for following a user
+        follow_user_parser.add_argument('follower_id', type=int, help='Your user ID to follow someone')
+        follow_user_parser.add_argument('followee_id', type=int, help='User ID of the person you want to follow')
+
+        # Subparser for unfollowing a user
+        unfollow_user_parser.add_argument('follower_id', type=int, help='Your user ID to unfollow someone')
+
+
         # create_user_parser.set_defaults(dest=create_user)
+        create_collections_parser.set_defaults(dest=create_collection)
         list_collections_parser.set_defaults(dest=list_collections)
         search_movies_parser.set_defaults(dest=search_movies)
         add_movie_parser.set_defaults(dest=add_movie)
@@ -246,9 +324,24 @@ def run_cli():
             create_user(connection, args.username, args.password, args.email, args.first_name, args.last_name)
         elif args.action == 'login':
             login_user(connection, args.username, args.password)
+        elif args.action == 'create_collection':
+            create_collection(connection, args.user_id, args.collection_name)
         elif args.action == 'list_collections':
-            list_collections(connection, cursor)
-            print("listing collections")
+            list_collections(connection, args.user_id)
+        elif args.action == 'search_movies':
+            search_movies(connection, args.search_query)
+        elif args.action == 'add_movie':
+            add_movie(connection, args.collection_id, args.movie_id)
+        elif args.action == 'delete_movie':
+            delete_movie(connection, args.movie_id)
+        elif args.action == 'rate_movie':
+            rate_movie(connection, args.user_id, args.movie_id, args.star_rating)
+        elif args.action == 'watch_movie':
+            watch_movie(connection, args.user_id, args.movie_id)
+        elif args.action == 'follow_user':
+            follow_user(connection, args.follower_id, args.followee_id)
+        elif args.action == 'unfollow_user':
+            unfollow_user(connection, args.follower_id)
         else:
             parser.print_help()
             connection.close()
