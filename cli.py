@@ -47,8 +47,8 @@ def run_cli():
             modify_collection_name(connection, args.collection_id, args.name)
         elif args.action == 'delete_collection':
             delete_collection(connection, args.collection_id)
-        elif args.action == 'search_movies':
-            search_movies(connection, args.search_query)
+        elif args.action == 'search_movies': # (search_field, search_query, sort_field, sort_order)
+            search_movies(connection, args.search_field, args.search_query, args.sort_field, args.sort_order)
         elif args.action == 'add_movie':
             add_movie(connection, args.collection_id, args.movie_id)
         elif args.action == 'delete_movie':
@@ -57,6 +57,8 @@ def run_cli():
             rate_movie(connection, args.user_id, args.movie_id, args.star_rating)
         elif args.action == 'watch_movie':
             watch_movie(connection, args.user_id, args.movie_id)
+        elif args.action == 'watch_collection':
+            watch_collection(connection, args.user_id, args.collection_id)
         elif args.action == 'follow_user':
             follow_user(connection, args.follower_id, args.followee_id)
         elif args.action == 'unfollow_user':

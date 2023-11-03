@@ -52,45 +52,102 @@ def create_collection(conn, user_id, collection_name):
         print(f"An error occurred: {e}")
         conn.rollback()
 
-# TODO: finish this
 '''
-- [ ] Users will be to see the list of all their collections by name in ascending order. The list must show the following information per collection:
-    - [ ] Collection’s name
-    - [ ] # of movies in the collection
-    - [ ] Total length of movies (hours:minutes) in the collection
+- Users will be to see the list of all their collections by name in ascending order. The list must show the following information per collection:
+    - Collection’s name
+    - # of movies in the collection
+    - Total length of movies (hours:minutes) in the collection
 '''
 def list_collections(conn, user_id):
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            SELECT * FROM Collection
-            """)
+            select c.name, count(m) as movie_count, sum(m.length) as total_length
+            from collection c
+            join holds h on c.collection_id = h.collection_id
+            join movie m on m.movie_id=h.movie_id
+            join users u on u.user_id=c.user_id
+            where u.user_id=%s
+            group by c.name
+            """, [user_id])
         collections = cursor.fetchall()
         for collection_name, movie_count, total_length in collections:
             print(f"Collection: {collection_name}, Movies: {movie_count}, Total Length: {str(total_length)}")
     except psycopg2.Error as e:
         print(f"Error listing collections: {e}") 
 
-def search_movies(conn, search_query):
+
+'''
+input 1: name, release date, cast members, studio, or genre
+input 2: input string from above ^
+
+input 3: sort by movie name, studio, genre, and released year (ascending and descending)
+
+The resulting list of movies must show the movie’s name, the cast members, the
+director, the length and the ratings (MPAA and user). The list must be sorted alpha-
+betically (ascending) by movie’s name and release date
+
+'''
+def search_movies(conn, search_field, search_query, sort_field, sort_order):
     cursor = conn.cursor()
-    # Assuming there's a full-text search index or some logic to search based on the given query
+
+    # Mapping user input to database columns and tables for the search
+    search_columns = {
+        "name": "m.title",
+        "release_date": "m.release_date",  # This column isn't defined in your structure, assuming it exists
+        "cast_members": "c.first_name || ' ' || c.last_name",
+        "studio": "s.studio_name",
+        "genre": "g.genre_name"
+    }
+
+    # Mapping for sorting
+    sort_columns = {
+        "movie_name": "m.title",
+        "studio": "s.studio_name",
+        "genre": "g.genre_name",
+        "released_year": "m.release_date"  # Assuming this column exists
+    }
+
+    # Validate inputs
+    if search_field not in search_columns:
+        raise ValueError(f"Invalid search field. Must be one of: {', '.join(search_columns.keys())}")
+    
+    if sort_field not in sort_columns:
+        raise ValueError(f"Invalid sort field. Must be one of: {', '.join(sort_columns.keys())}")
+
+    # Sorting order
+    sort_order_sql = "ASC" if sort_order == "ascending" else "DESC"
+
+    # Building the WHERE clause
+    where_clause = f"{search_columns[search_field]} LIKE %s"
+
+    # Construct the full SQL query
+    sql_query = f"""
+        SELECT m.title, STRING_AGG(c.first_name || ' ' || c.last_name, ', ') AS cast, 
+               d.first_name || ' ' || d.last_name AS director, m.length, m.MPA_RATING,
+               COALESCE(AVG(r.star_rating), 'Not Rated') AS user_rating
+        FROM Movie m
+        LEFT JOIN Acted_On ao ON m.Movie_ID = ao.Movie_id
+        LEFT JOIN Contributors c ON ao.Contributor_id = c.contributor_id
+        LEFT JOIN Directs dir ON m.Movie_ID = dir.Movie_id
+        LEFT JOIN Contributors d ON dir.Contributor_id = d.contributor_id
+        LEFT JOIN Rate r ON m.Movie_ID = r.Movie_ID
+        LEFT JOIN Make mk ON m.Movie_ID = mk.Movie_id
+        LEFT JOIN Studio s ON mk.Studio_id = s.studio_id
+        LEFT JOIN Is_Genre ig ON m.Movie_ID = ig.Movie_id
+        LEFT JOIN Genre g ON ig.Genre_id = g.genre_id
+        WHERE {where_clause}
+        GROUP BY m.Movie_ID, c.first_name, c.last_name, d.first_name, d.last_name, m.length, m.MPA_RATING
+        ORDER BY {sort_columns[sort_field]} {sort_order_sql}, m.title ASC
+    """
     try:
-        cursor.execute("""
-            SELECT m.title, array_agg(a.name), d.name, m.length, m.mpaa_rating, AVG(r.star_rating)
-            FROM movies m
-            JOIN cast_members cm ON m.movie_id = cm.movie_id
-            JOIN actors a ON cm.actor_id = a.actor_id
-            JOIN directors d ON m.director_id = d.director_id
-            LEFT JOIN ratings r ON m.movie_id = r.movie_id
-            WHERE m.title LIKE %s OR a.name LIKE %s OR d.name LIKE %s -- and so on for other fields
-            GROUP BY m.title, d.name, m.length, m.mpaa_rating
-            ORDER BY m.title ASC, m.release_date ASC
-            """, (f"%{search_query}%", f"%{search_query}%", f"%{search_query}%"))
+        cursor.execute(sql_query, (f"%{search_query}%",))
         movies = cursor.fetchall()
-        for movie in movies:
-            print(f"Movie: {movie}")
-    except psycopg2.Error as e:
-        print(f"Error searching movies: {e}")
+        return movies  # It's usually better to return the data and print it outside the function
+    except Exception as e:  # It's better to capture a more specific exception if possible
+        print(f"An error occurred: {e}")
+        return None
+
 
 def add_movie(args, cursor):
     try:
@@ -178,9 +235,39 @@ def watch_movie(conn, user_id, movie_id):
         cursor.execute('''Insert into watch_movie(user_id, movie_id, date_time)
             Values(%s, %s, %s)''', (user_id, movie_id, date_time))
         conn.commit()
-        print(f"Watched movie.")
+        print(f"Watched movie with ID: {movie_id[0]}.")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
+
+# "INSERT INTO Collection (Collection_ID, name) VALUES (%s, %s)",
+#             (user_id, collection_name)
+
+def watch_collection(conn, user_id, collection_id):
+    cursor = conn.cursor()
+    play_time = datetime.now()
+    try:
+        # Retrieve all movies in the collection
+        cursor.execute(
+            ''' 
+            select m.movie_id
+            from collection c
+            join holds h on c.collection_id = h.collection_id
+            join movie m on m.movie_id=h.movie_id
+            join users u on u.user_id=c.user_id
+            where u.user_id=4
+            group by c.name, m.movie_id
+            '''
+        )
+        movies = cursor.fetchall()
+        
+        # Record the play for each movie in the collection
+        for movie in movies:
+            watch_movie(conn, user_id, movie)  # Assuming the movie_id is the first element in the tuple
+
+        print(f"Collection with ID {collection_id} was played by user {user_id}.")
+    except psycopg2.Error as e:
+        print(f"An error occurred while playing the collection: {e}")
+        conn.rollback()
 
 def follow_user(conn, follower_id, followee_id):
     cursor = conn.cursor()

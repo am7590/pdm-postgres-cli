@@ -46,6 +46,7 @@ rate_movie_parser = subparsers.add_parser("rate_movie", help="Rate a movie")
 
 # watch_movie (individual or entire collection)
 watch_movie_parser = subparsers.add_parser("watch_movie", help="Watch a movie")
+watch_collection_parser = subparsers.add_parser("watch_collection", help="Watch a collection")
 
 # follow_user (by email)
 follow_user_parser = subparsers.add_parser("follow_user", help="Follow a user")
@@ -72,8 +73,11 @@ create_collections_parser.add_argument('collection_name', type=str, help='Your c
 # Subparser for listing collections
 list_collections_parser.add_argument('user_id', type=int, help='Your user ID to list collections')
 
-# Subparser for searching movies
+# Subparser for searching movies (search_field, search_query, sort_field, sort_order)
+search_movies_parser.add_argument('search_field', type=str, help='Field to search for movies')
 search_movies_parser.add_argument('search_query', type=str, help='Query to search for movies')
+search_movies_parser.add_argument('sort_field', type=str, help='Sort option')
+search_movies_parser.add_argument('sort_order', type=str, help='Sort order')
 
 # Subparser for adding a movie
 add_movie_parser.add_argument('collection_id', type=int, help='ID of the collection to add the movie to')
@@ -90,6 +94,9 @@ rate_movie_parser.add_argument('star_rating', type=float, help='Your rating for 
 # Subparser for watching a movie
 watch_movie_parser.add_argument('user_id', type=int, help='Your user ID to register the movie as watched')
 watch_movie_parser.add_argument('movie_id', type=int, help='ID of the movie you watched')
+
+watch_collection_parser.add_argument('user_id', type=int, help='Your user ID to register the movies as watched')
+watch_collection_parser.add_argument('collection_id', type=int, help='ID of the collection you want to watch')
 
 # Subparser for following a user
 follow_user_parser.add_argument('follower_id', type=int, help='Your user ID to follow someone')
@@ -130,6 +137,7 @@ add_movie_parser.set_defaults(dest=add_movie)
 delete_movie_parser.set_defaults(dest=delete_movie)
 rate_movie_parser.set_defaults(dest=rate_movie)
 watch_movie_parser.set_defaults(dest=watch_movie)
+watch_collection_parser.set_defaults(dest=watch_collection)
 follow_user_parser.set_defaults(dest=follow_user)
 unfollow_user_parser.set_defaults(dest=unfollow_user)
 search_users_parser.set_defaults(dest=search_users)
