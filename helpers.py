@@ -28,10 +28,9 @@ def create_user(conn, username, password, email, first_name, last_name):
     try:
         last_access_date = datetime.now()
         creation_date = datetime.now()
-        print("inserting")
         cursor.execute(
-            "INSERT INTO Users (user_id, last_access_date, creation_date, username, passwordhash, email, first_name, lastname) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-            (100000, last_access_date, creation_date, username, password, email, first_name, last_name)
+            "INSERT INTO Users (user_id, last_access_date, creation_date, username, passwordhash, email, first_name, last_name) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            (22, last_access_date, creation_date, username, password, email, first_name, last_name)
         )
         conn.commit()
         print(f"Successfully created user {username}")
@@ -43,8 +42,8 @@ def create_collection(conn, user_id, collection_name):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "INSERT INTO Collection (Collection_ID, name) VALUES (%s, %s)",
-            (user_id, collection_name)
+            "INSERT INTO Collection (Collection_ID, name, user_id) VALUES (%s, %s, %s)",
+            (user_id, collection_name, 1)
         )
         conn.commit()
         print(f"Collection '{collection_name}' created successfully.")
@@ -91,62 +90,67 @@ betically (ascending) by movie’s name and release date
 def search_movies(conn, search_field, search_query, sort_field, sort_order):
     cursor = conn.cursor()
 
-    # Mapping user input to database columns and tables for the search
-    search_columns = {
-        "name": "m.title",
-        "release_date": "m.release_date",  # This column isn't defined in your structure, assuming it exists
-        "cast_members": "c.first_name || ' ' || c.last_name",
-        "studio": "s.studio_name",
-        "genre": "g.genre_name"
-    }
-
-    # Mapping for sorting
-    sort_columns = {
-        "movie_name": "m.title",
-        "studio": "s.studio_name",
-        "genre": "g.genre_name",
-        "released_year": "m.release_date"  # Assuming this column exists
-    }
-
-    # Validate inputs
-    if search_field not in search_columns:
-        raise ValueError(f"Invalid search field. Must be one of: {', '.join(search_columns.keys())}")
+    if search_field == "name":
+        search_by_name(conn, search_query)
+    elif search_field == "studio":
+        print("search by studio")
+    elif search_field == "genre":
+        print("Search by studio")
+    elif search_field == "release":
+        print("Search by release date")
+        search_by_release_date(conn, search_query)
     
-    if sort_field not in sort_columns:
-        raise ValueError(f"Invalid sort field. Must be one of: {', '.join(sort_columns.keys())}")
-
-    # Sorting order
-    sort_order_sql = "ASC" if sort_order == "ascending" else "DESC"
-
-    # Building the WHERE clause
-    where_clause = f"{search_columns[search_field]} LIKE %s"
-
-    # Construct the full SQL query
-    sql_query = f"""
-        SELECT m.title, STRING_AGG(c.first_name || ' ' || c.last_name, ', ') AS cast, 
-               d.first_name || ' ' || d.last_name AS director, m.length, m.MPA_RATING,
-               COALESCE(AVG(r.star_rating), 'Not Rated') AS user_rating
-        FROM Movie m
-        LEFT JOIN Acted_On ao ON m.Movie_ID = ao.Movie_id
-        LEFT JOIN Contributors c ON ao.Contributor_id = c.contributor_id
-        LEFT JOIN Directs dir ON m.Movie_ID = dir.Movie_id
-        LEFT JOIN Contributors d ON dir.Contributor_id = d.contributor_id
-        LEFT JOIN Rate r ON m.Movie_ID = r.Movie_ID
-        LEFT JOIN Make mk ON m.Movie_ID = mk.Movie_id
-        LEFT JOIN Studio s ON mk.Studio_id = s.studio_id
-        LEFT JOIN Is_Genre ig ON m.Movie_ID = ig.Movie_id
-        LEFT JOIN Genre g ON ig.Genre_id = g.genre_id
-        WHERE {where_clause}
-        GROUP BY m.Movie_ID, c.first_name, c.last_name, d.first_name, d.last_name, m.length, m.MPA_RATING
-        ORDER BY {sort_columns[sort_field]} {sort_order_sql}, m.title ASC
-    """
+# python3 cli.py search_movies name Deadpool field order
+def search_by_name(conn, movie_name):
+    cursor = conn.cursor()
     try:
-        cursor.execute(sql_query, (f"%{search_query}%",))
+        # Basic info
+        print("Basic info:")
+        cursor.execute("""
+            select  m.title,m.length, m.release_date, m.mpa_rating
+            from movie m
+            where m.title = %s;
+        """, (movie_name,))
         movies = cursor.fetchall()
-        return movies  # It's usually better to return the data and print it outside the function
-    except Exception as e:  # It's better to capture a more specific exception if possible
-        print(f"An error occurred: {e}")
-        return None
+        for movie in movies:
+            print(f"{movie}")
+        print("\n")
+
+        # Contributers
+        print("Contributers and directors:")
+        cursor.execute("""
+            select ct.first_name,ct.last_name
+            from contributors ct
+            join acted_on ao on ct.contributor_id = ao.contributor_id
+            join movie m on ao.movie_id = m.movie_id
+            where m.title=%s;
+        """, (movie_name,))
+        movies = cursor.fetchall()
+        for movie in movies:
+            print(f"{movie}")
+        print("\n")
+        
+    except psycopg2.Error as e:
+        print(f"Error searching by movie name: {e}")
+
+# python3 cli.py search_movies release 2019-04-26 field order
+def search_by_release_date(conn, date):
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            select c.name,  sum(m.length) as total_length, m.title, m.release_date
+            from collection c
+            join holds h on c.collection_id = h.collection_id
+            join movie m on m.movie_id=h.movie_id
+            join users u on u.user_id=c.user_id
+            where u.user_id=4 and m.release_date=%s
+            group by c.name, m.movie_id
+        """, (date,))
+        movies = cursor.fetchall()
+        for movie in movies:
+            print(f"Movie: {movie}")
+    except psycopg2.Error as e:
+        print(f"Error searching by movie name: {e}")
 
 
 def add_movie(args, cursor):
@@ -160,7 +164,7 @@ def add_movie_to_collection(conn, collection_id, name):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "Insert into collection(collection_id, name) VALUES (%s, %s)",
+            "Insert into holds(collection_id, movie_id) VALUES (%s, %s)",
             (collection_id, name)
         )
         conn.commit()
@@ -173,7 +177,7 @@ def delete_movie_from_collection(conn, collection_id, name):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "DELETE FROM collection WHERE collection_id = %s AND name = %s",
+            "DELETE FROM holds WHERE collection_id = %s AND movie_id = %s",
             (collection_id, name)
         )
         conn.commit()
@@ -235,7 +239,7 @@ def watch_movie(conn, user_id, movie_id):
         cursor.execute('''Insert into watch_movie(user_id, movie_id, date_time)
             Values(%s, %s, %s)''', (user_id, movie_id, date_time))
         conn.commit()
-        print(f"Watched movie with ID: {movie_id[0]}.")
+        print(f"Watched movie with ID: {movie_id}.")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
@@ -273,7 +277,7 @@ def follow_user(conn, follower_id, followee_id):
     cursor = conn.cursor()
     try:
         cursor.execute('''Insert into following(follower_id, followee_id)
-            Values(%s, %s)''', (followee_id, followee_id))
+            Values(%s, %s)''', (follower_id, followee_id))
         conn.commit()
         print(f"Followed user.")
     except psycopg2.Error as e:
@@ -297,5 +301,125 @@ def search_users(conn, email):
         for user in users:
             print(f"{user}")
         print(f"Searched users")
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
+
+
+#####################
+###### Phase 3 ######
+#####################
+
+def top_twenty(conn, followee_id):
+    curser = conn.cursor()
+    try:
+        cursor.execute('''
+            select avg(r.star_rating) as average_rate, m.title as movie_title
+            from following f
+            join rate r on r.user_id=follower_id
+            join movie m on m.movie_id=r.movie_id
+            where f.followee_id=%s
+            group by movie_title
+            order by average_rate DESC
+            limit 20;
+        ''', (followee_id,))
+        conn.commit()
+        movies = curser.fetchall()
+        for movie in movies:
+            print(f"{movie}")
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
+
+def top_five(conn):
+    curser = conn.cursor()
+    try:
+        cursor.execute('''
+            select r.movie_id, m.title,avg(star_rating) as average_rate from rate r
+            join   p320_12.movie m on r.movie_id = m.movie_id
+            where  m.release_date between '2023-04-01 00:00:00.000000' And '2023-04-30 00:00:00.000000'
+            group by r.movie_id, m.title
+            order by average_rate DESC
+            LIMIT 5;
+        ''')
+        conn.commit()
+        movies = curser.fetchall()
+        for movie in movies:
+            print(f"{movie}")
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
+
+# TODO: pass in user_id?
+def movies_based_on_genre_history(conn, genre):
+    curser = conn.cursor()
+    try:
+        cursor.execute('''
+            select  m.title, avg(star_rating) as average_rate from rate r
+            join    movie m on m.movie_id=r.movie_id
+            join    is_genre ig on m.movie_id=ig.movie_id
+            join    genre g on g.genre_id=ig.genre_id
+            where g.genre_name=%s
+            group by m.title
+            order by average_rate
+            limit 5;
+        ''', (genre,))
+        conn.commit()
+        movies = curser.fetchall()
+        for movie in movies:
+            print(f"{movie}")
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
+
+def movies_based_on_cast_history(conn, cast_name):
+    curser = conn.cursor()
+    try:
+        cursor.execute('''
+            select  m.title, avg(star_rating) as average_rate from rate r
+            join    movie m on m.movie_id=r.movie_id
+            join    acted_on ao on m.movie_id = ao.movie_id
+            join    contributors c on ao.contributor_id=c.contributor_id
+            where c.first_name='Chris'
+            group by m.title
+            order by average_rate
+            limit 10;
+        ''', (cast_name,))
+        conn.commit()
+        movies = curser.fetchall()
+        for movie in movies:
+            print(f"{movie}")
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
+
+def movies_based_on_mpaa(conn, rating):
+    curser = conn.cursor()
+    try:
+        cursor.execute('''
+            select  m.title, avg(star_rating) as average_rate from rate r
+            join    movie m on m.movie_id=r.movie_id
+            where m.mpa_rating=%s
+            group by m.title
+            order by average_rate DESC
+            limit 10;
+        ''', (rating,))
+        conn.commit()
+        movies = curser.fetchall()
+        for movie in movies:
+            print(f"{movie}")
+    except psycopg2.Error as e:
+        print(f"Error: {e} {cursor.statusmessage}")
+
+# TODO: Pass in user_id
+def movies_based_on_star_rating(conn):
+    curser = conn.cursor()
+    try:
+        cursor.execute('''
+            select  m.title, avg(star_rating) as average_rate from rate r
+            join    movie m on m.movie_id=r.movie_id
+            group by m.title
+            order by average_rate DESC
+            limit 10;
+        ''', (rating,))
+        conn.commit()
+        movies = curser.fetchall()
+        for movie in movies:
+            print(f"{movie}")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")

@@ -31,7 +31,7 @@ def run_cli():
         args = parser.parse_args()
 
         # Handle user actions
-        if args.action == 'create':
+        if args.action == 'create_user':
             create_user(connection, args.username, args.password, args.email, args.first_name, args.last_name)
         elif args.action == 'login':
             login_user(connection, args.username, args.password)
