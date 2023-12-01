@@ -56,6 +56,8 @@ unfollow_user_parser = subparsers.add_parser("unfollow_user", help="Unfollow a u
 
 search_users_parser = subparsers.add_parser("search_users", help="Search a user via email")
 
+user_profile_parser = subparsers.add_parser("user_profile", help="View a user's profile")
+
 #  creating a user
 create_user_parser.add_argument('username', type=str, help='Enter your username')
 create_user_parser.add_argument('password', type=str, help='Enter your password')
