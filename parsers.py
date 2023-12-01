@@ -125,6 +125,30 @@ delete_collection_parser.add_argument('collection_id', type=int, help="The colle
 # search users (by email)
 search_users_parser.add_argument('email', type=str, help="The user's email to search")
 
+# The top 20 most popular movies in the last 90 days (rolling)
+top_twenty_parser = subparsers.add_parser("top_twenty", help="The top 20 most popular movies in the last 90 days (rolling)")
+top_twenty_parser.add_argument('followee_id', type=int, help="The user to find popular movies for")
+
+# The top 5 new releases of the month (calendar month)
+top_five_parser = subparsers.add_parser("top_five", help="The top 5 new releases of the month (calendar month)")
+
+# Recommend movies to watch to based on your play history (genre)
+genre_parser = subparsers.add_parser("genre", help="Recommend movies to watch to based on your play history (genre)")
+genre_parser.add_argument('genre', type=str, help="The genre to search")
+
+# Recommend movies to watch to based on your play history (cast members)
+cast_members_parser = subparsers.add_parser("cast_members", help="Recommend movies to watch to based on your play history (cast members)")
+cast_members_parser.add_argument('name', type=str, help="The cast member name to search")
+
+# Recommend movies to watch to based on your play history (mpaa_rating)
+mpaa_rating_parser = subparsers.add_parser("mpaa_rating", help="Recommend movies to watch to based on your play history (mpaa_rating)")
+mpaa_rating_parser.add_argument('rating', type=str, help="The mpaa rating to search for")
+
+# Recommend movies to watch to based on your play history (star_rating)
+star_rating_parser = subparsers.add_parser("star_rating", help="Recommend movies to watch to based on your play history (star_rating)")
+star_rating_parser.add_argument('rating', type=int, help="The star rating to search for")
+
+
 # Set default functions for parsers
 create_user_parser.set_defaults(dest=create_user)
 login_user_parser.set_defaults(dest=login_user)
@@ -143,3 +167,9 @@ watch_collection_parser.set_defaults(dest=watch_collection)
 follow_user_parser.set_defaults(dest=follow_user)
 unfollow_user_parser.set_defaults(dest=unfollow_user)
 search_users_parser.set_defaults(dest=search_users)
+top_twenty_parser.set_defaults(dest=top_twenty)
+top_five_parser.set_defaults(dest=top_five)
+genre_parser.set_defaults(dest=movies_based_on_genre_history)
+cast_members_parser.set_defaults(dest=movies_based_on_cast_history)
+mpaa_rating_parser.set_defaults(dest=movies_based_on_mpaa)
+star_rating_parser.set_defaults(dest=movies_based_on_star_rating)

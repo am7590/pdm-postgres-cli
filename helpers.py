@@ -308,12 +308,14 @@ def search_users(conn, email):
         print(f"Error: {e} {cursor.statusmessage}")
 
 
-#####################
-###### Phase 3 ######
-#####################
+#####################################
+############## Phase 3 ##############
+#####################################
+
+# Movie recommendation
 
 def top_twenty(conn, followee_id):
-    curser = conn.cursor()
+    cursor = conn.cursor()
     try:
         cursor.execute('''
             select avg(r.star_rating) as average_rate, m.title as movie_title
@@ -326,14 +328,15 @@ def top_twenty(conn, followee_id):
             limit 20;
         ''', (followee_id,))
         conn.commit()
-        movies = curser.fetchall()
+        movies = cursor.fetchall()
         for movie in movies:
             print(f"{movie}")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
+# TODO: pass in user id
 def top_five(conn):
-    curser = conn.cursor()
+    cursor = conn.cursor()
     try:
         cursor.execute('''
             select r.movie_id, m.title,avg(star_rating) as average_rate from rate r
@@ -344,7 +347,7 @@ def top_five(conn):
             LIMIT 5;
         ''')
         conn.commit()
-        movies = curser.fetchall()
+        movies = cursor.fetchall()
         for movie in movies:
             print(f"{movie}")
     except psycopg2.Error as e:
@@ -352,7 +355,7 @@ def top_five(conn):
 
 # TODO: pass in user_id?
 def movies_based_on_genre_history(conn, genre):
-    curser = conn.cursor()
+    cursor = conn.cursor()
     try:
         cursor.execute('''
             select  m.title, avg(star_rating) as average_rate from rate r
@@ -363,36 +366,36 @@ def movies_based_on_genre_history(conn, genre):
             group by m.title
             order by average_rate
             limit 5;
-        ''', (genre,))
+        ''', (genre.capitalize(),))
         conn.commit()
-        movies = curser.fetchall()
+        movies = cursor.fetchall()
         for movie in movies:
             print(f"{movie}")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
 def movies_based_on_cast_history(conn, cast_name):
-    curser = conn.cursor()
+    cursor = conn.cursor()
     try:
         cursor.execute('''
             select  m.title, avg(star_rating) as average_rate from rate r
             join    movie m on m.movie_id=r.movie_id
             join    acted_on ao on m.movie_id = ao.movie_id
             join    contributors c on ao.contributor_id=c.contributor_id
-            where c.first_name='Chris'
+            where c.first_name=%s
             group by m.title
             order by average_rate
             limit 10;
         ''', (cast_name,))
         conn.commit()
-        movies = curser.fetchall()
+        movies = cursor.fetchall()
         for movie in movies:
             print(f"{movie}")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
 def movies_based_on_mpaa(conn, rating):
-    curser = conn.cursor()
+    cursor = conn.cursor()
     try:
         cursor.execute('''
             select  m.title, avg(star_rating) as average_rate from rate r
@@ -403,15 +406,15 @@ def movies_based_on_mpaa(conn, rating):
             limit 10;
         ''', (rating,))
         conn.commit()
-        movies = curser.fetchall()
+        movies = cursor.fetchall()
         for movie in movies:
             print(f"{movie}")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
 
 # TODO: Pass in user_id
-def movies_based_on_star_rating(conn):
-    curser = conn.cursor()
+def movies_based_on_star_rating(conn, rating):
+    cursor = conn.cursor()
     try:
         cursor.execute('''
             select  m.title, avg(star_rating) as average_rate from rate r
@@ -421,7 +424,7 @@ def movies_based_on_star_rating(conn):
             limit 10;
         ''', (rating,))
         conn.commit()
-        movies = curser.fetchall()
+        movies = cursor.fetchall()
         for movie in movies:
             print(f"{movie}")
     except psycopg2.Error as e:

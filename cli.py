@@ -69,6 +69,18 @@ def run_cli():
             search_users(connection, args.email)
         elif args.action == 'user_profile':
             user_profile_menu(connection)
+        elif args.action == 'top_twenty':
+            top_twenty(connection, args.followee_id)
+        elif args.action == 'top_five':
+            top_five(connection)
+        elif args.action == 'genre':
+            movies_based_on_genre_history(connection, args.genre)
+        elif args.action == 'cast_members':
+            movies_based_on_cast_history(connection, args.name)
+        elif args.action == 'mpaa_rating':
+            movies_based_on_mpaa(connection, args.rating)
+        elif args.action == 'star_rating':
+            movies_based_on_star_rating(connection, args.rating)
         else:
             parser.print_help()
             connection.close()
