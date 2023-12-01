@@ -1,5 +1,8 @@
 from datetime import datetime
 
+import psycopg2
+
+
 def login_user(conn, username, password):
     cursor = conn.cursor()
     try:
@@ -423,3 +426,96 @@ def movies_based_on_star_rating(conn):
             print(f"{movie}")
     except psycopg2.Error as e:
         print(f"Error: {e} {cursor.statusmessage}")
+
+
+def get_user_id(conn, username):
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+                    SELECT user_id
+                    FROM users
+                    WHERE username = %s;
+                    """, [username])
+        return cursor.fetchone()
+    except psycopg2.Error as e:
+        print(f"Error listing collections: {e}")
+
+
+def get_owned_collections(conn, user_id):
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+                SELECT COUNT(*) AS user_id_count
+                FROM collection
+                WHERE user_id = %s;
+                """, [user_id])
+        return cursor.fetchone()
+    except psycopg2.Error as e:
+        print(f"Error listing collections: {e}")
+
+
+def get_followers(conn, user_id):
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+                    SELECT COUNT(*) AS follower_id_count
+                    FROM following
+                    WHERE followee_id = %s;
+                    """, [user_id])
+        return cursor.fetchone()
+    except psycopg2.Error as e:
+        print(f"Error listing followers: {e}")
+
+
+def get_following(conn, user_id):
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+                    SELECT COUNT(*) AS followee_id_count
+                    FROM following
+                    WHERE follower_id = %s;
+                    """, [user_id])
+        return cursor.fetchone()
+    except psycopg2.Error as e:
+        print(f"Error listing followers: {e}")
+
+
+def get_top10_rating(conn, user_id):
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+                    SELECT movie_id, AVG(star_rating) AS avg_rating
+                    FROM rate
+                    WHERE user_id = 1
+                    GROUP BY movie_id
+                    ORDER BY avg_rating DESC
+                    LIMIT 10;
+                        """, [user_id])
+        return cursor.fetchall()
+    except psycopg2.Error as e:
+        print(f"Error: {e}")
+
+
+def get_top10_plays(conn, user_id):
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+                    SELECT movie_id, COUNT(*) AS frequency
+                    FROM watch_movie
+                    WHERE user_id = %s
+                    GROUP BY movie_id
+                    ORDER BY frequency DESC
+                    LIMIT 10;
+                            """, [user_id])
+        return cursor.fetchall()
+    except psycopg2.Error as e:
+        print(f"Error: {e}")
+
+
+def get_movie_title(conn, movie_id):
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT title FROM movie WHERE movie_id = %s", [movie_id])
+        return cursor.fetchone()[0]
+    except psycopg2.Error as e:
+        print(f"Error fetching movie title: {e}")

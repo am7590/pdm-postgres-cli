@@ -4,9 +4,11 @@ import paramiko
 from sshtunnel import SSHTunnelForwarder
 from datetime import datetime
 import uuid
+from userprofileview import user_profile_menu
 
 from setup import *
 from parsers import *
+
 
 def run_cli():
     # Connect to DB
@@ -65,6 +67,8 @@ def run_cli():
             unfollow_user(connection, args.follower_id)
         elif args.action == 'search_users':
             search_users(connection, args.email)
+        elif args.action == 'user_profile':
+            user_profile_menu(connection)
         else:
             parser.print_help()
             connection.close()
